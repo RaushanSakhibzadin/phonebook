@@ -1,55 +1,53 @@
 package com.example.phonebook.service;
 
 import com.example.phonebook.exceptions.ContactNotFoundException;
+import com.example.phonebook.repository.InMemoryPhoneBookRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class PhoneBookService {
-    private final Map<String, List<String>> phoneBook = new HashMap<>();
 
-    // Add a new contact or a new number to an existing contact
-    public void addPhoneNumber(String name, String phoneNumber) {
-        phoneBook.computeIfAbsent(name, k -> new ArrayList<>()).add(phoneNumber);
+    private final InMemoryPhoneBookRepository phoneBookRepository;
+
+    @Autowired
+    public PhoneBookService(InMemoryPhoneBookRepository phoneBookRepository) {
+        this.phoneBookRepository = phoneBookRepository;
     }
 
-    // Get all phone numbers for a given name
-    public List<String> getPhoneNumbers(String name) {
-        return phoneBook.getOrDefault(name, new ArrayList<>());
-    }
-
-    // Get all contacts
     public Map<String, List<String>> getAllContacts() {
-        return phoneBook;
+        return phoneBookRepository.findAll();
     }
 
-    // Remove a specific phone number for a contact
-    public boolean removePhoneNumber(String name, String phoneNumber) {
-        List<String> numbers = phoneBook.get(name);
-        if (numbers != null) {
-            boolean removed = numbers.remove(phoneNumber);
-            if (numbers.isEmpty()) {
-                phoneBook.remove(name); // Remove contact if no numbers are left
-            }
-            return removed;
-        }
-        return false;
-    }
-
-    // Remove all phone numbers for a contact (remove the contact)
-    public void removeContact(String name) {
-        if (!phoneBook.containsKey(name)) {
+    public List<String> getContact(String name) {
+        if (contactNotExists(name)) {
             throw new ContactNotFoundException("Contact with name '" + name + "' does not exist.");
         }
-        phoneBook.remove(name);
+        return phoneBookRepository.findByName(name);
     }
 
-    // Check if a contact exists
-    public boolean contactExists(String name) {
-        return phoneBook.containsKey(name);
+    public void addContact(String name, List<String> phoneNumbers) {
+        phoneNumbers.forEach(phoneNumber -> phoneBookRepository.addPhoneNumber(name, phoneNumber));
+    }
+
+    public void updateContact(String name, List<String> phoneNumbers) {
+        if (contactNotExists(name)) {
+            throw new ContactNotFoundException("Contact with name '" + name + "' does not exist.");
+        }
+        phoneNumbers.forEach(phoneNumber -> phoneBookRepository.addPhoneNumber(name, phoneNumber));
+    }
+
+    public void deleteContact(String name) {
+        if (contactNotExists(name)) {
+            throw new ContactNotFoundException("Contact with name '" + name + "' does not exist.");
+        }
+        phoneBookRepository.remove(name);
+    }
+
+    public boolean contactNotExists(String name) {
+        return !phoneBookRepository.existsByName(name);
     }
 }
